@@ -37,7 +37,7 @@ class QuizResource extends Resource
                     TextInput::make('title')
                         ->required()
                         ->maxLength(255)
-                        ->live()
+                        ->live(onBlur: true)
                         ->afterStateUpdated(fn(Set $set, ?string $state) => $set('slug', Str::slug($state))),
 
                     TextInput::make('slug')
