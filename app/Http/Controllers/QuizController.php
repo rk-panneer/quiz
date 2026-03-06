@@ -45,7 +45,7 @@ class QuizController extends Controller
 
         foreach ($quiz->questions as $question) {
             $max += match ($question->question_type) {
-                'mcq_single', 'boolean' => $question->options->where('is_correct', true)->sum('score'),
+                'mcq_single', 'boolean', 'image_answer' => $question->options->where('is_correct', true)->sum('score'),
                 'mcq_multiple' => $question->options->where('is_correct', true)->sum('score'),
                 'number_range' => $question->numberRanges->max('score') ?? 0,
                 'text_keywords' => $question->keywords->sum('score'),

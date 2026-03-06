@@ -21,6 +21,24 @@
             </div>
             <div
                 class="flex-shrink-0 flex items-center gap-4 bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-100">
+                @if($timeLimitSeconds !== null)
+                    <div class="text-center border-r border-slate-100 pr-4 mr-2" x-data="{ 
+                                            timeLeft: {{ $timeLimitSeconds }},
+                                            formatTime() {
+                                                const minutes = Math.floor(this.timeLeft / 60);
+                                                const seconds = this.timeLeft % 60;
+                                                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                                            }
+                                         }"
+                        x-init="setInterval(() => { if(timeLeft > 0) timeLeft-- }, 1000); $watch('timeLeft', value => { if(value <= 0) $wire.submit() })">
+                        <span
+                            class="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Time
+                            Left</span>
+                        <span class="text-lg font-black tracking-tighter transition-colors tabular-nums"
+                            :class="timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-slate-900'"
+                            x-text="formatTime()"></span>
+                    </div>
+                @endif
                 <div class="text-center">
                     <span
                         class="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Queue</span>
@@ -51,6 +69,22 @@
                     <h3 class="text-3xl md:text-5xl font-black text-slate-900 leading-[1.1] tracking-tighter">
                         {{ $currentQuestion->question_text }}
                     </h3>
+
+                    @if ($currentQuestion->media_type === 'image' && $currentQuestion->media_path)
+                        <div class="mt-8 rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                            <img src="{{ Storage::url($currentQuestion->media_path) }}" alt="Question Media"
+                                class="w-full h-auto object-cover max-h-[400px]">
+                        </div>
+                    @elseif ($currentQuestion->media_type === 'video' && $currentQuestion->media_url)
+                        <div class="mt-8 aspect-video rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                            <iframe src="{{ $currentQuestion->embed_url }}" class="w-full h-full" allowfullscreen></iframe>
+                        </div>
+                    @elseif ($currentQuestion->media_type === 'audio' && $currentQuestion->media_url)
+                        <div
+                            class="mt-8 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 flex items-center justify-center">
+                            <audio controls src="{{ $currentQuestion->media_url }}" class="w-full"></audio>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="grid grid-cols-1 gap-5">
@@ -60,13 +94,20 @@
                             <label class="cursor-pointer group/option">
                                 <input type="radio" x-model="answer" value="{{ $option->id }}" class="hidden">
                                 <div class="flex items-center gap-6 p-4 rounded-[1.5rem] border-2 transition-all duration-300 transform group-hover/option:scale-[1.01]"
-                                    :class="answer == {{ $option->id }} ? 'border-primary-600 bg-primary-50/50 shadow-lg shadow-primary-100 ring-2 ring-primary-600/10' : 'border-slate-100 bg-white/50 hover:border-primary-200 hover:bg-white'">
+                                    :class="answer == {{ $option->id }} ? 'border-primary-600 bg-primary-50/50 shadow-lg shadow-primary-100' : 'border-slate-100 bg-white/50 hover:border-primary-200'">
 
-                                    <div class="w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-300"
+                                    <div class="flex-shrink-0 w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-300"
                                         :class="answer == {{ $option->id }} ? 'border-primary-600 bg-primary-600 rotate-12' : 'border-slate-200 bg-slate-50'">
                                         <div class="w-2 h-2 rounded-sm bg-white transition-opacity"
                                             :class="answer == {{ $option->id }} ? 'opacity-100' : 'opacity-0'"></div>
                                     </div>
+
+                                    @if($option->image_path)
+                                        <div
+                                            class="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 border-slate-100 shadow-sm">
+                                            <img src="{{ Storage::url($option->image_path) }}" class="w-full h-full object-cover">
+                                        </div>
+                                    @endif
 
                                     <span class="text-lg font-bold tracking-tight transition-colors"
                                         :class="answer == {{ $option->id }} ? 'text-primary-900' : 'text-slate-600'">
@@ -85,13 +126,20 @@
                                 <div class="flex items-center gap-6 p-4 rounded-[1.5rem] border-2 transition-all duration-300 transform group-hover/option:scale-[1.01]"
                                     :class="(typeof answer === 'object' && answer !== null && (Object.values(answer).includes('{{ $option->id }}') || Object.values(answer).includes({{ $option->id }}))) || (Array.isArray(answer) && (answer.includes('{{ $option->id }}') || answer.includes({{ $option->id }}))) ? 'border-primary-600 bg-primary-50/50 shadow-lg shadow-primary-100' : 'border-slate-100 bg-white/50 hover:border-primary-200'">
 
-                                    <div class="w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-300"
+                                    <div class="flex-shrink-0 w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-300"
                                         :class="(typeof answer === 'object' && answer !== null && (Object.values(answer).includes('{{ $option->id }}') || Object.values(answer).includes({{ $option->id }}))) || (Array.isArray(answer) && (answer.includes('{{ $option->id }}') || answer.includes({{ $option->id }}))) ? 'border-primary-600 bg-primary-600' : 'border-slate-200 bg-slate-50'">
                                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4"
                                                 d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     </div>
+
+                                    @if($option->image_path)
+                                        <div
+                                            class="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 border-slate-100 shadow-sm">
+                                            <img src="{{ Storage::url($option->image_path) }}" class="w-full h-full object-cover">
+                                        </div>
+                                    @endif
 
                                     <span class="text-lg font-bold tracking-tight transition-colors"
                                         :class="(typeof answer === 'object' && answer !== null && (Object.values(answer).includes('{{ $option->id }}') || Object.values(answer).includes({{ $option->id }}))) || (Array.isArray(answer) && (answer.includes('{{ $option->id }}') || answer.includes({{ $option->id }}))) ? 'text-primary-900' : 'text-slate-600'">
@@ -125,6 +173,55 @@
                                     points with delimiter characters</span>
                             </div>
                         </div>
+
+                        {{-- MEDIA CHOICE (Image Response) --}}
+                    @elseif($currentQuestion->question_type === 'image_answer')
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                            @foreach($currentQuestion->options as $option)
+                                <label class="cursor-pointer group/option">
+                                    <input type="radio" x-model="answer" value="{{ $option->id }}" class="hidden">
+                                    <div class="flex flex-col h-full rounded-[2rem] border-2 transition-all duration-300 transform group-hover/option:scale-[1.02] overflow-hidden bg-white shadow-sm"
+                                        :class="answer == {{ $option->id }} ? 'border-primary-600 ring-4 ring-primary-100' : 'border-slate-100 hover:border-primary-200'">
+
+                                        @if($option->image_path)
+                                            <div class="aspect-square relative overflow-hidden bg-slate-50">
+                                                <img src="{{ Storage::url($option->image_path) }}"
+                                                    class="w-full h-full object-cover transition-transform duration-500 group-hover/option:scale-110"
+                                                    alt="{{ $option->option_text }}">
+                                                <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity"
+                                                    :class="answer == {{ $option->id }} ? 'opacity-100' : ''"></div>
+                                            </div>
+                                        @else
+                                            <div class="aspect-square flex items-center justify-center bg-slate-50">
+                                                <svg class="w-12 h-12 text-slate-200" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                                    </path>
+                                                </svg>
+                                            </div>
+                                        @endif
+
+                                        <div class="p-4 flex items-center justify-between gap-3">
+                                            @if($option->option_text)
+                                                <span class="text-sm font-bold tracking-tight text-slate-700 clamp-1">
+                                                    {{ $option->option_text }}
+                                                </span>
+                                            @endif
+
+                                            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                                                :class="answer == {{ $option->id }} ? 'border-primary-600 bg-primary-600' : 'border-slate-200'">
+                                                <svg x-show="answer == {{ $option->id }}" class="w-3 h-3 text-white" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                                        d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
                     @endif
                 </div>
 
@@ -139,29 +236,29 @@
                     @endif
 
                     <button @click="
-                                let isValid = true;
-                                if ({{ $currentQuestion->is_required ? 'true' : 'false' }}) {
-                                    if (Array.isArray(answer)) {
-                                        isValid = answer.length > 0;
-                                    } else if (typeof answer === 'object' && answer !== null) {
-                                        isValid = Object.keys(answer).length > 0;
-                                    } else {
-                                        isValid = (answer !== null && answer !== undefined && answer !== '');
-                                    }
-                                }
+                                                let isValid = true;
+                                                if ({{ $currentQuestion->is_required ? 'true' : 'false' }}) {
+                                                    if (Array.isArray(answer)) {
+                                                        isValid = answer.length > 0;
+                                                    } else if (typeof answer === 'object' && answer !== null) {
+                                                        isValid = Object.keys(answer).length > 0;
+                                                    } else {
+                                                        isValid = (answer !== null && answer !== undefined && answer !== '');
+                                                    }
+                                                }
 
-                                if (isValid) {
-                                    let submitAnswer = answer;
-                                    if (typeof submitAnswer === 'object' && submitAnswer !== null && !Array.isArray(submitAnswer)) {
-                                        submitAnswer = Object.values(submitAnswer);
-                                    }
-                                    $wire.nextQuestion(submitAnswer);
-                                } else {
-                                    window.dispatchEvent(new CustomEvent('toast', { 
-                                        detail: { text: 'Question choice is required. Please select an option.', type: 'error' } 
-                                    }));
-                                }
-                            "
+                                                if (isValid) {
+                                                    let submitAnswer = answer;
+                                                    if (typeof submitAnswer === 'object' && submitAnswer !== null && !Array.isArray(submitAnswer)) {
+                                                        submitAnswer = Object.values(submitAnswer);
+                                                    }
+                                                    $wire.nextQuestion(submitAnswer);
+                                                } else {
+                                                    window.dispatchEvent(new CustomEvent('toast', { 
+                                                        detail: { text: 'Question choice is required. Please select an option.', type: 'error' } 
+                                                    }));
+                                                }
+                                            "
                         class="w-full sm:w-auto btn-premium text-white font-black px-16 py-4 rounded-[2rem] uppercase tracking-widest text-sm flex items-center justify-center gap-3">
                         {{ $currentIndex === ($totalCount - 1) ? 'Finalize Result' : 'Push Next' }}
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,15 +284,21 @@
                 </div>
                 <h2 class="text-5xl font-black text-slate-900 tracking-tighter uppercase leading-none">Diagnostic Success
                 </h2>
+                @if($timeExpired)
+                    <div
+                        class="inline-flex items-center px-4 py-1.5 bg-red-50 text-red-700 text-[10px] font-black uppercase rounded-lg tracking-widest animate-pulse mt-2">
+                        System Shutdown: Time Expired
+                    </div>
+                @endif
                 <p class="text-slate-400 font-bold tracking-widest uppercase text-xs">Environment: {{ $quiz->title }}</p>
             </div>
 
             <!-- Score Module -->
             <div class="flex flex-col md:flex-row items-center justify-center gap-12">
                 <div class="relative w-64 h-64" x-data="{ count: 0 }" x-init="setTimeout(() => { 
-                            let target = {{ $totalScore }};
-                            let interval = setInterval(() => { if (count >= target) clearInterval(interval); else count++; }, 30);
-                        }, 500)">
+                                            let target = {{ $totalScore }};
+                                            let interval = setInterval(() => { if (count >= target) clearInterval(interval); else count++; }, 30);
+                                        }, 500)">
                     <svg class="w-full h-full transform -rotate-90 drop-shadow-2xl">
                         <circle cx="128" cy="128" r="110" stroke="#f1f5f9" stroke-width="16" fill="transparent" />
                         <circle cx="128" cy="128" r="110" stroke="url(#gradientScore)" stroke-width="16" fill="transparent"

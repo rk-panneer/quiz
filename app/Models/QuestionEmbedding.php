@@ -6,23 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class QuestionOption extends Model
+class QuestionEmbedding extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'question_id',
-        'option_text',
-        'image_path',
-        'is_correct',
-        'score',
-        'order',
+        'embedding',
     ];
 
     protected $casts = [
-        'is_correct' => 'boolean',
-        'score' => 'integer',
-        'order' => 'integer',
+        'embedding' => 'array',
     ];
 
     public function question(): BelongsTo

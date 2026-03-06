@@ -9,14 +9,15 @@ return new class extends Migration {
     {
         Schema::create('questions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('quiz_id')->constrained('quizzes')->cascadeOnDelete();
             $table->text('question_text');
-            $table->string('question_type'); // NOT enum – allows future types without schema change
-            $table->unsignedInteger('order')->default(0)->index();
+            $table->string('normalized_question_text', 500)->nullable()->unique();
+            $table->string('question_type');
+            $table->enum('media_type', ['none', 'image', 'video', 'audio'])->default('none');
+            $table->string('media_url')->nullable();
+            $table->string('media_path')->nullable();
+            $table->unsignedInteger('order')->default(0);
             $table->boolean('is_required')->default(true);
             $table->timestamps();
-
-            $table->index(['quiz_id', 'order']); // composite index for ordered fetching
         });
     }
 

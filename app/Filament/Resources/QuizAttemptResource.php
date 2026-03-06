@@ -20,6 +20,9 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Image;
+use Filament\Schemas\Components\Html;
+use Illuminate\Support\Facades\Storage;
 use League\Csv\Writer;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Gate;
@@ -82,10 +85,16 @@ class QuizAttemptResource extends Resource
                             }
                         }
 
-                        $optionLabels = [];
+                        $optionData = [];
                         if (!empty($allIds)) {
-                            $optionLabels = QuestionOption::whereIn('id', array_values(array_unique($allIds)))->pluck('option_text', 'id')->toArray();
+                            $optionData = QuestionOption::whereIn('id', array_values(array_unique($allIds)))
+                                ->get(['id', 'option_text', 'image_path'])
+                                ->keyBy('id')
+                                ->toArray();
                         }
+
+                        $optionLabels = array_map(fn($opt) => $opt['option_text'], $optionData);
+                        $optionImages = array_map(fn($opt) => $opt['image_path'], $optionData);
 
                         foreach ($record->answers as $index => $answer) {
                             $items[] = Section::make("Question " . ($index + 1))
@@ -100,11 +109,18 @@ class QuizAttemptResource extends Resource
                                                 ->label('Answer Given')
                                                 ->content(function () use ($answer, $optionLabels) {
                                                     $val = $answer->answer;
-                                                    if ($val === null || $val === '' || (is_array($val) && empty($val))) {
+                                                    if ($val === null && !$answer->answer_media_path) {
                                                         return 'N/A';
                                                     }
 
-                                                    if (in_array($answer->question->question_type, [Question::TYPE_MCQ_SINGLE, Question::TYPE_MCQ_MULTIPLE, Question::TYPE_BOOLEAN])) {
+                                                    if (
+                                                        in_array($answer->question->question_type, [
+                                                            Question::TYPE_MCQ_SINGLE,
+                                                            Question::TYPE_MCQ_MULTIPLE,
+                                                            Question::TYPE_BOOLEAN,
+                                                            Question::TYPE_IMAGE_ANSWER,
+                                                        ])
+                                                    ) {
                                                         $ids = is_array($val) ? $val : [$val];
                                                         $ids = array_filter($ids, fn($id) => is_numeric($id));
 
@@ -121,12 +137,44 @@ class QuizAttemptResource extends Resource
                                                         return !empty($labels) ? implode(', ', $labels) : (is_array($val) ? implode(', ', $val) : $val);
                                                     }
 
+
                                                     return is_array($val) ? implode(', ', $val) : $val;
                                                 }),
+
                                             Placeholder::make("s_{$index}")
                                                 ->label('Score Earned')
                                                 ->content(fn() => ($answer->score_awarded ?? 0) . ' points'),
-                                        ])
+                                        ]),
+
+                                    // Display Media Preview if available (from direct upload OR selected option)
+                                    Grid::make(1)
+                                        ->schema([
+                                            // 1. Direct Upload Preview
+                                            Html::make(fn() => "
+                                                <div>
+                                                    <p class='text-sm font-medium text-gray-500'>Answer Media</p>
+                                                    <img src='" . Storage::url($answer->answer_media_path) . "' class='max-h-48 rounded-lg shadow-sm mt-1' />
+                                                </div>
+                                            ")->visible(fn() => (bool) $answer->answer_media_path),
+
+                                            // 2. Choice-based Image Preview
+                                            Html::make(function () use ($answer, $optionImages) {
+                                                $val = $answer->answer;
+                                                if (!is_numeric($val))
+                                                    return null;
+                                                $img = isset($optionImages[$val]) ? Storage::url($optionImages[$val]) : null;
+                                                if (!$img)
+                                                    return null;
+                                                return "
+                                                    <div>
+                                                        <p class='text-sm font-medium text-gray-500'>Selected Option Image</p>
+                                                        <img src='{$img}' class='max-h-48 rounded-lg shadow-sm mt-1' />
+                                                    </div>
+                                                ";
+                                            })->visible(fn() => in_array($answer->question->question_type, [Question::TYPE_IMAGE_ANSWER, Question::TYPE_MCQ_SINGLE, Question::TYPE_MCQ_MULTIPLE]) && is_numeric($answer->answer)),
+                                        ])->visible(function () use ($answer) {
+                                            return $answer->answer_media_path || (is_numeric($answer->answer) && in_array($answer->question->question_type, [Question::TYPE_IMAGE_ANSWER, Question::TYPE_MCQ_SINGLE, Question::TYPE_MCQ_MULTIPLE]));
+                                        }),
                                 ]);
                         }
                         return $items;
@@ -142,8 +190,9 @@ class QuizAttemptResource extends Resource
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('email')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: function (EloquentBuilder $query, string $search): EloquentBuilder {
+                        return $query->where('email_hash', hash('sha256', $search));
+                    }),
                 TextColumn::make('total_score')
                     ->sortable()
                     ->label('Score'),

@@ -14,6 +14,7 @@ class AttemptAnswer extends Model
         'attempt_id',
         'question_id',
         'answer',
+        'answer_media_path',
         'score_awarded',
     ];
 

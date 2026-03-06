@@ -19,11 +19,15 @@ class Quiz extends Model
         'slug',
         'description',
         'status',
+        'max_attempts_per_user',
+        'time_limit_minutes',
         'created_by',
     ];
 
     protected $casts = [
         'status' => 'string',
+        'max_attempts_per_user' => 'integer',
+        'time_limit_minutes' => 'integer',
     ];
 
     // ─── Relationships ────────────────────────────────────────────
@@ -33,9 +37,12 @@ class Quiz extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function questions(): HasMany
+    public function questions(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->hasMany(Question::class)->orderBy('order');
+        return $this->belongsToMany(Question::class, 'question_quiz')
+            ->withPivot('order')
+            ->withTimestamps()
+            ->orderBy('question_quiz.order');
     }
 
     public function attempts(): HasMany

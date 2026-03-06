@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('quizzes', function (Blueprint $table) {
@@ -14,6 +13,8 @@ return new class extends Migration
             $table->string('slug')->unique()->index();
             $table->text('description')->nullable();
             $table->enum('status', ['draft', 'published', 'archived'])->default('draft')->index();
+            $table->unsignedInteger('max_attempts_per_user')->nullable();
+            $table->unsignedInteger('time_limit_minutes')->nullable();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
             $table->timestamps();
         });
