@@ -42,15 +42,18 @@ class QuizScoringService
                 Question::TYPE_NUMBER_RANGE => $this->scoreNumberRange($question, $rawAnswer),
                 Question::TYPE_TEXT_KEYWORDS => $this->scoreTextKeywords($question, $rawAnswer),
                 Question::TYPE_BOOLEAN => $this->scoreBoolean($question, $rawAnswer),
+                Question::TYPE_IMAGE_ANSWER => $this->scoreMcqSingle($question, $rawAnswer),
                 default => 0,
             };
 
+            $answerData = [
+                'score_awarded' => $score,
+                'answer' => $rawAnswer,
+            ];
+
             AttemptAnswer::updateOrCreate(
                 ['attempt_id' => $attempt->id, 'question_id' => $question->id],
-                [
-                    'answer' => $rawAnswer,
-                    'score_awarded' => $score,
-                ]
+                $answerData
             );
 
             $totalScore += $score;

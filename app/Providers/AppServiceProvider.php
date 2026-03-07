@@ -12,7 +12,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\App\Services\LLM\LLMManager::class, function ($app) {
+            return new \App\Services\LLM\LLMManager($app);
+        });
+
+        $this->app->bind(\App\Services\LLM\Contracts\LLMProviderInterface::class, function ($app) {
+            return $app->make(\App\Services\LLM\LLMManager::class)->driver();
+        });
     }
 
     /**

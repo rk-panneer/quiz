@@ -60,8 +60,32 @@ class QuizResource extends Resource
                         ])
                         ->default('draft')
                         ->required(),
+
+                    TextInput::make('max_attempts_per_user')
+                        ->numeric()
+                        ->nullable()
+                        ->label('Max Attempts Per User')
+                        ->helperText('Leave empty for unlimited attempts.'),
+
+                    TextInput::make('time_limit_minutes')
+                        ->numeric()
+                        ->nullable()
+                        ->label('Time Limit (Minutes)')
+                        ->helperText('Leave empty for no time limit.'),
                 ])
                 ->columns(2),
+
+            Section::make('Quick Selection')
+                ->description('Import existing questions or create new ones directly.')
+                ->schema([
+                    Select::make('questions')
+                        ->relationship('questions', 'question_text')
+                        ->multiple()
+                        ->searchable()
+                        ->preload()
+                        ->label('Included Questions')
+                        ->createOptionForm(\App\Filament\Resources\Questions\Schemas\QuestionForm::schema()),
+                ]),
         ]);
     }
 
@@ -86,12 +110,21 @@ class QuizResource extends Resource
                     ]),
 
                 TextColumn::make('questions_count')
-                    ->counts('questions')
-                    ->label('Questions'),
+                    ->label('Questions')
+                    ->getStateUsing(fn($record) => $record->questions()->count())
+                    ->alignCenter()
+                    ->sortable(),
 
                 TextColumn::make('attempts_count')
-                    ->counts('attempts')
-                    ->label('Attempts'),
+                    ->label('Attempts')
+                    ->getStateUsing(fn($record) => $record->attempts()->count())
+                    ->alignCenter(),
+
+                TextColumn::make('time_limit_minutes')
+                    ->label('Duration')
+                    ->formatStateUsing(fn($state) => $state ? "{$state}m" : '∞')
+                    ->alignCenter()
+                    ->sortable(),
 
                 TextColumn::make('created_at')
                     ->dateTime()
@@ -127,6 +160,7 @@ class QuizResource extends Resource
     {
         return [
             RelationManagers\QuestionsRelationManager::class,
+            RelationManagers\AttemptsRelationManager::class,
         ];
     }
 

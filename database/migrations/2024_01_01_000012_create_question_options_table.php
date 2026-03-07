@@ -10,7 +10,8 @@ return new class extends Migration {
         Schema::create('question_options', function (Blueprint $table) {
             $table->id();
             $table->foreignId('question_id')->constrained('questions')->cascadeOnDelete();
-            $table->string('option_text');
+            $table->string('option_text')->nullable();
+            $table->string('image_path')->nullable();
             $table->boolean('is_correct')->nullable();
             $table->integer('score')->nullable();
             $table->unsignedInteger('order')->default(0);

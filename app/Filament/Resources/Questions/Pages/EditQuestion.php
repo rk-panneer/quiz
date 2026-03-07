@@ -10,6 +10,11 @@ class EditQuestion extends EditRecord
 {
     protected static string $resource = QuestionResource::class;
 
+    protected function afterSave(): void
+    {
+        app(\App\Services\QuestionService::class)->syncEmbedding($this->record);
+    }
+
     protected function getHeaderActions(): array
     {
         return [

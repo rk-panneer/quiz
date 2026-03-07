@@ -19,17 +19,10 @@ return new class extends Migration {
             $table->index(['quiz_id', 'order']);
             $table->timestamps();
         });
-
-        Schema::table('questions', function (Blueprint $table) {
-            $table->unsignedBigInteger('quiz_id')->nullable()->change();
-        });
     }
 
     public function down(): void
     {
         Schema::dropIfExists('question_quiz');
-        Schema::table('questions', function (Blueprint $table) {
-            $table->unsignedBigInteger('quiz_id')->nullable(false)->change();
-        });
     }
 };

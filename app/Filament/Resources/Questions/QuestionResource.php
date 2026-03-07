@@ -6,10 +6,6 @@ use App\Filament\Resources\Questions\Pages\CreateQuestion;
 use App\Filament\Resources\Questions\Pages\EditQuestion;
 use App\Filament\Resources\Questions\Pages\ListQuestions;
 use App\Models\Question;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Forms\Components\Select;
@@ -21,10 +17,25 @@ use Filament\Schemas\Components\Section;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Actions\CreateAction;
+use Filament\Actions\AttachAction;
+use Filament\Actions\EditAction as TableEditAction;
+use Filament\Actions\DeleteAction as TableDeleteAction;
+use Filament\Actions\BulkActionGroup as TableBulkActionGroup;
+use Filament\Actions\DeleteBulkAction as TableDeleteBulkAction;
+use Filament\Actions\DetachAction;
+use Filament\Actions\BulkAction as TableBulkAction;
+use Filament\Actions\Action as TableAction;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Illuminate\Database\Eloquent\Collection;
 
 class QuestionResource extends Resource
 {
@@ -35,122 +46,20 @@ class QuestionResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([
-            Section::make('General Information')
-                ->schema([
-                    Select::make('quiz_id')
-                        ->relationship('quiz', 'title')
-                        ->required()
-                        ->searchable(),
-
-                    Select::make('question_type')
-                        ->options(Question::typeLabels())
-                        ->required()
-                        ->live(),
-
-                    Textarea::make('question_text')
-                        ->required()
-                        ->rows(2)
-                        ->columnSpanFull(),
-
-                    Grid::make(2)
-                        ->schema([
-                            TextInput::make('order')
-                                ->numeric()
-                                ->default(0)
-                                ->required(),
-
-                            Toggle::make('is_required')
-                                ->default(true),
-                        ]),
-                ]),
-
-            Section::make('Answer Configuration')
-                ->description('Configure options, ranges, or keywords depending on the type.')
-                ->schema([
-                    Repeater::make('options')
-                        ->relationship('options')
-                        ->hidden(fn(Get $get) => !in_array($get('question_type'), [
-                            Question::TYPE_MCQ_SINGLE,
-                            Question::TYPE_MCQ_MULTIPLE,
-                            Question::TYPE_BOOLEAN
-                        ]))
-                        ->schema([
-                            Grid::make(12)
-                                ->schema([
-                                    TextInput::make('option_text')
-                                        ->required()
-                                        ->columnSpan(5),
-                                    Toggle::make('is_correct')
-                                        ->label('Correct?')
-                                        ->columnSpan(3)
-                                        ->live()
-                                        ->afterStateUpdated(function ($state, Get $get, Set $set, $component) {
-                                            if ($state && $get('../../question_type') === Question::TYPE_MCQ_SINGLE) {
-                                                $path = $component->getStatePath();
-                                                $currentRowKey = (string) str($path)->beforeLast('.')->afterLast('.');
-                                                $options = $get('../../options') ?? [];
-
-                                                foreach ($options as $key => $option) {
-                                                    if ($key !== $currentRowKey) {
-                                                        $options[$key]['is_correct'] = false;
-                                                    }
-                                                }
-
-                                                $set('../../options', $options);
-                                            }
-                                        }),
-                                    TextInput::make('score')
-                                        ->numeric()
-                                        ->default(0)
-                                        ->columnSpan(2),
-                                    TextInput::make('order')
-                                        ->numeric()
-                                        ->default(0)
-                                        ->columnSpan(2),
-                                ]),
-                        ])
-                        ->rules([
-                            function (Get $get) {
-                                return function (string $attribute, $value, \Closure $fail) use ($get) {
-                                    if ($get('question_type') === Question::TYPE_MCQ_SINGLE) {
-                                        $correctCount = collect($value)->where('is_correct', true)->count();
-                                        if ($correctCount > 1) {
-                                            $fail('Single choice questions can only have one correct answer.');
-                                        }
-                                    }
-                                };
-                            },
-                        ]),
-
-                    Repeater::make('numberRanges')
-                        ->relationship('numberRanges')
-                        ->hidden(fn(Get $get) => $get('question_type') !== Question::TYPE_NUMBER_RANGE)
-                        ->schema([
-                            TextInput::make('min_value')->numeric()->required()->columnSpan(4),
-                            TextInput::make('max_value')->numeric()->required()->columnSpan(4),
-                            TextInput::make('score')->numeric()->required()->columnSpan(4),
-                        ])->columns(12),
-
-                    Repeater::make('keywords')
-                        ->relationship('keywords')
-                        ->hidden(fn(Get $get) => $get('question_type') !== Question::TYPE_TEXT_KEYWORDS)
-                        ->schema([
-                            TextInput::make('keyword')->required()->columnSpan(8),
-                            TextInput::make('score')->numeric()->required()->columnSpan(4),
-                        ])->columns(12),
-                ])
-        ]);
+        return $form->schema(\App\Filament\Resources\Questions\Schemas\QuestionForm::schema());
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                TextColumn::make('quiz.title')
-                    ->searchable()
-                    ->sortable()
-                    ->label('Quiz'),
+                TextColumn::make('quizzes_count')
+                    ->counts('quizzes')
+                    ->label('Used In')
+                    ->suffix(' Quizzes')
+                    ->badge()
+                    ->color('gray')
+                    ->alignCenter(),
 
                 TextColumn::make('question_text')
                     ->limit(50)
@@ -158,27 +67,89 @@ class QuestionResource extends Resource
 
                 TextColumn::make('question_type')
                     ->badge()
-                    ->formatStateUsing(fn($state) => Question::typeLabels()[$state] ?? $state),
+                    ->formatStateUsing(fn($state) => Question::typeLabels()[$state] ?? $state)
+                    ->colors([
+                        'primary' => fn($state) => in_array($state, [Question::TYPE_MCQ_SINGLE, Question::TYPE_MCQ_MULTIPLE]),
+                        'success' => Question::TYPE_BOOLEAN,
+                        'warning' => Question::TYPE_IMAGE_ANSWER,
+                        'info' => Question::TYPE_TEXT_KEYWORDS,
+                        'danger' => Question::TYPE_NUMBER_RANGE,
+                    ]),
+
+
+                TextColumn::make('media_type')
+                    ->badge()
+                    ->formatStateUsing(fn($state) => ucfirst($state))
+                    ->colors([
+                        'gray' => Question::MEDIA_TYPE_NONE,
+                        'info' => Question::MEDIA_TYPE_IMAGE,
+                        'success' => Question::MEDIA_TYPE_VIDEO,
+                        'warning' => Question::MEDIA_TYPE_AUDIO,
+                    ]),
 
                 IconColumn::make('is_required')
-                    ->boolean(),
+                    ->boolean()
+                    ->label('Req'),
 
                 TextColumn::make('order')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('quiz')
-                    ->relationship('quiz', 'title'),
+                SelectFilter::make('quizzes')
+                    ->relationship('quizzes', 'title'),
                 SelectFilter::make('question_type')
                     ->options(Question::typeLabels()),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                TableEditAction::make(),
+                TableDeleteAction::make(),
             ])
             ->bulkActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                TableBulkActionGroup::make([
+                    TableBulkAction::make('addToQuiz')
+                        ->label('Import to Quiz')
+                        ->icon('heroicon-o-plus-circle')
+                        ->form([
+                            Select::make('quiz_id')
+                                ->label('Target Quiz')
+                                ->options(\App\Models\Quiz::pluck('title', 'id'))
+                                ->required(),
+                        ])
+                        ->action(function (Collection $records, array $data) {
+                            $quizId = $data['quiz_id'];
+                            $quiz = \App\Models\Quiz::find($quizId);
+
+                            if (!$quiz) {
+                                \Filament\Notifications\Notification::make()
+                                    ->danger()
+                                    ->title('Quiz not found')
+                                    ->body("The target quiz could not be found.")
+                                    ->send();
+                                return;
+                            }
+
+                            $attachedCount = 0;
+                            foreach ($records as $question) {
+                                // Check if already attached to prevent unnecessary operations
+                                if (!$question->quizzes->contains($quizId)) {
+                                    $question->quizzes()->attach($quizId);
+                                    $attachedCount++;
+                                }
+                            }
+
+                            \Filament\Notifications\Notification::make()
+                                ->success()
+                                ->title('Import successful')
+                                ->body("{$attachedCount} questions added to the quiz '{$quiz->title}'.")
+                                ->send();
+                        }),
+                    TableDeleteBulkAction::make(),
                 ]),
             ]);
     }

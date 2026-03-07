@@ -11,11 +11,11 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('attempt_id')->constrained('quiz_attempts')->cascadeOnDelete();
             $table->foreignId('question_id')->constrained('questions')->cascadeOnDelete();
-            $table->json('answer'); // Stores answer in a flexible JSON structure per question type
+            $table->json('answer')->nullable();
+            $table->string('answer_media_path')->nullable();
             $table->integer('score_awarded')->default(0);
             $table->timestamps();
-
-            $table->unique(['attempt_id', 'question_id']); // one answer per question per attempt
+            $table->unique(['attempt_id', 'question_id']);
             $table->index('attempt_id');
         });
     }
