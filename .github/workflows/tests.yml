@@ -3,6 +3,7 @@ name: Tests
 on:
   push:
     branches:
+      - main
       - master
       - '*.x'
   pull_request:
@@ -37,6 +38,12 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Install NPM dependencies
+        run: npm install
+
+      - name: Build assets
+        run: npm run build
+
       - name: Copy environment file
         run: cp .env.example .env
 
@@ -44,4 +51,6 @@ jobs:
         run: php artisan key:generate
 
       - name: Execute tests
+        env:
+          GEMINI_API_KEY: testing
         run: vendor/bin/phpunit

@@ -8,5 +8,8 @@ permissions:
   issues: write
 
 jobs:
-  help-wanted:
-    uses: laravel/.github/.github/workflows/issues.yml@main
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
