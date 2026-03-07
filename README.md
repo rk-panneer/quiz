@@ -59,6 +59,12 @@ This system follows modern engineering patterns to ensure maintainability and pe
    cp .env.example .env
    php artisan key:generate
    ```
+   Add the below key variables into .env
+   ```bash
+   GEMINI_API_KEY=
+   GEMINI_MODEL=gemini-1.5-flash
+   GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+   ```
 
 3. **Database Configuration**:
    Update your `.env` with your DB credentials AND your `GEMINI_API_KEY`, then run:
