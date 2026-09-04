@@ -14,10 +14,25 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // 1. Create Admin User
+        // Credentials come from .env (ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD).
+        // Falls back to a known local-only default; on non-local environments
+        // without an explicit password set, a random one is generated and printed once.
+        $adminEmail = env('ADMIN_SEED_EMAIL', 'admin@admin.com');
+        $adminPassword = env('ADMIN_SEED_PASSWORD');
+
+        if (! $adminPassword) {
+            if (app()->environment('local', 'testing')) {
+                $adminPassword = '12345678';
+            } else {
+                $adminPassword = Str::random(16);
+                $this->command?->warn("No ADMIN_SEED_PASSWORD set in .env — generated random admin password: {$adminPassword} (save this now, it will not be shown again).");
+            }
+        }
+
         $admin = User::create([
             'name' => 'Admin User',
-            'email' => 'admin@admin.com',
-            'password' => Hash::make('12345678'),
+            'email' => $adminEmail,
+            'password' => Hash::make($adminPassword),
         ]);
 
         // 2. Create Sample Quiz

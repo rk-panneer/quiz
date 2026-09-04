@@ -85,15 +85,16 @@ This system follows modern engineering patterns to ensure maintainability and pe
 
 ---
 
-## 🧑‍💻 Access Credentials
+## 🧑‍💻 Admin Access
 
-### Admin Dashboard
-Access the panel at: `http://127.0.0.1:8000/admin`
+The admin panel is available at `/admin`. The seeder creates a default admin account for local development only — **the credentials are read from your `.env` file, not hardcoded**, and must be changed before any non-local deployment:
 
-| Property | Value |
-| :--- | :--- |
-| **Email** | `admin@admin.com` |
-| **Password** | `12345678` |
+```env
+ADMIN_SEED_EMAIL=your-email@example.com
+ADMIN_SEED_PASSWORD=set-a-strong-password-here
+```
+
+⚠️ Never deploy this application with default or hardcoded admin credentials.
 
 ---
 
